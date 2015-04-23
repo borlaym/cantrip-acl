@@ -1,0 +1,26 @@
+{
+  "name": "cantrip-acl",
+  "version": "0.0.1",
+  "description": "Access Control for Cantrip",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/borlaym/cantrip-acl.git"
+  },
+  "keywords": [
+    "acl",
+    "cantrip"
+  ],
+  "author": "Márton Borlay",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/borlaym/cantrip-acl/issues"
+  },
+  "homepage": "https://github.com/borlaym/cantrip-acl",
+  "dependencies": {
+    "lodash": "^3.7.0"
+  }
+}
