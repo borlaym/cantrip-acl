@@ -4,7 +4,8 @@
   "description": "Access Control for Cantrip",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "grunt test",
+    "start": "node examples/server.js"
   },
   "repository": {
     "type": "git",

@@ -29,7 +29,7 @@ app.use(function(err, req, res, next) {
 
 app.use(function(req, res, next) {
     req.user = {
-        groups: ["user"]
+        roles: ["user"]
     }
     next();
 });

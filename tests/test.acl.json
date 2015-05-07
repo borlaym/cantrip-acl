@@ -1,0 +1,9 @@
+{
+	"/": {
+		"GET": []
+	},
+	"/users": {
+		"GET": ["admin"],
+		"POST": ["admin"]
+	}
+}

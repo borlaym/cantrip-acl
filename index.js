@@ -23,7 +23,7 @@ function subroutes(url) {
 module.exports = function(options) {
 
 	options = _.extend({
-		groupsField: "groups",
+		rolesField: "roles",
 		idField: "_id",
 		userField: "user",
 		acl: {}
@@ -47,16 +47,14 @@ module.exports = function(options) {
 		acl = options.acl;
 	}
 
-	console.log("ACL", acl);
-
 	return function(req, res, next) {
 
-		//Get the groups the current user is in. Searches the request object for it, based on the option "groupsField"
+		//Get the groups the current user is in. Searches the request object for it, based on the option "rolesField"
 		var groups = [];
-		var keys = options.groupsField.split(".");
+		var keys = options.rolesField.split(".");
 		
 		try {
-			groups = req[options.userField][options.groupsField];
+			groups = req[options.userField][options.rolesField];
 		} catch(err) {
 		}
 		if (_.isString(groups)) {
@@ -71,14 +69,12 @@ module.exports = function(options) {
 		}
 
 		var url = req.url;
-		console.log("REQ URL", url);
 		var foundRestriction = false; //This indicates whether there was any restriction found during the process. If not, the requests defaults to pass.
 		//Loop through all possible urls starting from the beginning, eg: /, /users, /users/:id, /users/:id/comments, /users/:id/comments/:id.
 		var fragments = subroutes(req.url);
 		for (var i = 0; i < fragments.length; i++) {
 			//Get the current url fragment
 			var fragment = fragments[i];
-			console.log("FRAGMENT", fragment);
 			//Loop through the _acl table
 			for (var key in acl) {
 				var regexp = pathToRegexp(key);
