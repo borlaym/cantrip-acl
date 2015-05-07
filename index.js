@@ -1,21 +1,52 @@
 var _ = require("lodash");
+var fs = require("fs");
+var pathToRegexp = require("path-to-regexp");
+
+/**
+ * Returns the subroutes (?) of a url. For example, take the url /users/2321/comments. It will return ["/users", "/users/2321", "/users/2321/comments"]
+ * @param  {String} url
+ * @return {Array}
+ */
+function subroutes(url) {
+	var components = url.split("/");
+	components = components.splice(1, components.length -1);
+	var fragments = [];
+	for (var i = 0; i < components.length; i++) {
+		fragments.push("/" + components.slice(0, (i + 1)).join("/"));
+	}
+	return fragments;
+}
 
 module.exports = function(options) {
 
 	options = _.extend({
 		groupsField: "groups",
-		idField: "id",
-		userField: "user"
+		idField: "_id",
+		userField: "user",
+		acl: {}
 	}, options);
 
-	return function(req, dataStore, callback) {
+	var acl;
 
-		//Get the acl table from the dataStore. If it doesn't exist, no restrictions are assumed, so the function returns true.
-		var acl = dataStore.get("/_acl");
+	if (_.isString(options.acl)) {
+		acl = fs.readFileSync(options.acl);
 		if (!acl) {
-			callback && typeof callback === "function" && callback(null, true);
-			return true;
+			throw new Error("Couldn't find specified acl file: " + options.acl);
+			return;
 		}
+		try {
+			acl = JSON.parse(acl);
+		} catch(err) {
+			throw new Error("Invalid JSON file specified for acl.");
+			return;
+		}
+	} else {
+		acl = options.acl;
+	}
+
+	console.log("ACL", acl);
+
+	return function(req, res, next) {
 
 		//Get the groups the current user is in. Searches the request object for it, based on the option "groupsField"
 		var groups = [];
@@ -31,51 +62,30 @@ module.exports = function(options) {
 		if (!_.isArray(groups)) {
 			console.log("Wrong data supplied as groups.");
 			callback(new Error("Wrong data supplied as groups."), false);
-			return false;
+			return next({
+				status: 500
+			});
 		}
 
-		var url = req.path + "";
-		//strip "/" character from the end of the url
-		if (url[url.length - 1] === "/") url = url.substr(0, url.length - 1);
-
+		var url = req.url;
+		console.log("REQ URL", url);
 		var foundRestriction = false; //This indicates whether there was any restriction found during the process. If not, the requests defaults to pass.
 		//Loop through all possible urls starting from the beginning, eg: /, /users, /users/:id, /users/:id/comments, /users/:id/comments/:id.
 		for (var i = 0; i < url.split("/").length; i++) {
 			//Get the current url fragment
-			var fragment = _.first(url.split("/"), (i + 1)).join("/");
-			if (fragment === "") fragment = "/"; //fragment for the root element
-			//Build a regex that will be used to match urls in the _acl table
-			var regex = "^";
-			fragment.substr(1).split("/").forEach(function(f) {
-				if (f !== "") {
-					regex += "/(" + f + "|:[a-zA-Z]+)";
-				}
-			});
-			regex += "$";
-			if (regex === "^$") regex = "^/$"; //regex for the root element
-			var matcher = new RegExp(regex);
+			var fragment = url.split("/").slice(0, (i + 1)).join("/");
+			fragment = "/" + fragment;
+			console.log("FRAGMENT", fragment);
 			//Loop through the _acl table
 			for (var key in acl) {
-				if (key.match(matcher)) {
+				var regexp = pathToRegexp(key);
+				if (fragment.match(regexp)) {
 					if (acl[key][req.method]) {
 						foundRestriction = true;
 						//Check if the user is in a group that is inside this restriction
 						if (_.intersection(groups || [], acl[key][req.method]).length > 0) {
-							callback && typeof callback === "function" && callback(null, true);
-							return true;
+							return next();
 						}
-
-						//Check if the user is the owner of the object, when "owner" as a group is specified
-						// if (acl[key][req.method].indexOf("owner") > -1) {
-						// 	var node;
-						// 	dataStore.get(fragment, function(err, res) {
-						// 		if (err) console.log("Error ", err);
-						// 		node = res;
-						// 	});
-						// 	if (node && node._owner === req.user._id) {
-						// 		return next();
-						// 	}
-						// }
 					}
 				}
 			}
@@ -83,11 +93,12 @@ module.exports = function(options) {
 
 		//Check if we found any restrictions along the way
 		if (foundRestriction) {
-			callback && typeof callback === "function" && callback(new Error("Access denied."), false);
-			return false;
+			return next({
+				status: 401,
+				error: "Access denied: unauthorized access."
+			});
 		} else {
-			callback && typeof callback === "function" && callback(null, true);
-			return true;
+			return next();
 		}
 	}
 }
