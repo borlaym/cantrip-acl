@@ -14,6 +14,9 @@ function subroutes(url) {
 	for (var i = 0; i < components.length; i++) {
 		fragments.push("/" + components.slice(0, (i + 1)).join("/"));
 	}
+	if (fragments[0] !== "/") {
+		fragments.unshift("/");
+	}
 	return fragments;
 }
 
@@ -71,10 +74,10 @@ module.exports = function(options) {
 		console.log("REQ URL", url);
 		var foundRestriction = false; //This indicates whether there was any restriction found during the process. If not, the requests defaults to pass.
 		//Loop through all possible urls starting from the beginning, eg: /, /users, /users/:id, /users/:id/comments, /users/:id/comments/:id.
-		for (var i = 0; i < url.split("/").length; i++) {
+		var fragments = subroutes(req.url);
+		for (var i = 0; i < fragments.length; i++) {
 			//Get the current url fragment
-			var fragment = url.split("/").slice(0, (i + 1)).join("/");
-			fragment = "/" + fragment;
+			var fragment = fragments[i];
 			console.log("FRAGMENT", fragment);
 			//Loop through the _acl table
 			for (var key in acl) {
