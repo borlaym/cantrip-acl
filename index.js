@@ -24,7 +24,6 @@ module.exports = function(options) {
 
 	options = _.extend({
 		rolesField: "roles",
-		idField: "_id",
 		userField: "user",
 		acl: {}
 	}, options);
@@ -40,7 +39,7 @@ module.exports = function(options) {
 		try {
 			acl = JSON.parse(acl);
 		} catch(err) {
-			throw new Error("Invalid JSON file specified for acl.");
+			throw new Error("Invalid JSON file specified for acl: " + options.acl);
 			return;
 		}
 	} else {
@@ -49,26 +48,32 @@ module.exports = function(options) {
 
 	return function(req, res, next) {
 
-		//Get the groups the current user is in. Searches the request object for it, based on the option "rolesField"
-		var groups = [];
+		//Skip if it's not one of the supported methods
+		if (["GET", "POST", "PUT", "PATCH", "DELETE"].indexOf(req.method) === -1) {
+			next();
+		}
+
+		//Get the roles the current user is in. Searches the request object for it, based on the option "rolesField"
+		var roles = [];
 		var keys = options.rolesField.split(".");
 		
-		try {
-			groups = req[options.userField][options.rolesField];
-		} catch(err) {
+		if (_.isObject(req[options.userField])) {
+			roles = req[options.userField][options.rolesField];
 		}
-		if (_.isString(groups)) {
-			groups = [groups];
-		}
-		if (!_.isArray(groups)) {
-			console.log("Wrong data supplied as groups.");
-			callback(new Error("Wrong data supplied as groups."), false);
+
+		if (!_.isArray(roles)) {
+			console.log("Wrong data supplied as roles.");
+			callback(new Error("Wrong data supplied as roles."), false);
 			return next({
 				status: 500
 			});
 		}
 
-		var url = req.url;
+		//Automatically has acccess if has role _super
+		if (roles.indexOf("_super") > -1) {
+			return next();
+		}
+
 		var foundRestriction = false; //This indicates whether there was any restriction found during the process. If not, the requests defaults to pass.
 		//Loop through all possible urls starting from the beginning, eg: /, /users, /users/:id, /users/:id/comments, /users/:id/comments/:id.
 		var fragments = subroutes(req.url);
@@ -79,10 +84,17 @@ module.exports = function(options) {
 			for (var key in acl) {
 				var regexp = pathToRegexp(key);
 				if (fragment.match(regexp)) {
-					if (acl[key][req.method]) {
+					if (acl[key][req.method] || acl[key]["ALL"] || acl[key]["MODIFY"]) {
+						//Check which rule we must use. Always use a specific rule first, if there is one, then MODIFY then ALL
+						var methodToCheck = acl[key][req.method] ? req.method : (acl[key]["MODIFY"] ? "MODIFY" : "ALL");
+						//If there's only a modify rule and the request is a GET, skip this rule
+						if (methodToCheck === "MODIFY" && req.method === "GET") {
+							continue;
+						}
+						//We found at least one restriction
 						foundRestriction = true;
 						//Check if the user is in a group that is inside this restriction
-						if (_.intersection(groups || [], acl[key][req.method]).length > 0) {
+						if (_.intersection(roles, acl[key][methodToCheck]).length > 0) {
 							return next();
 						}
 					}

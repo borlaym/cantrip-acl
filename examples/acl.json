@@ -1,8 +1,9 @@
 {
 	"/": {
-		"GET": ["admin"]
+		"ALL": []
 	},
 	"/todos": {
-		"POST": ["user"]
+		"GET": ["user"],
+		"MODIFY": []
 	}
 }

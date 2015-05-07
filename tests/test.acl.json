@@ -1,9 +1,17 @@
 {
-	"/": {
+	"/foo": {
 		"GET": []
 	},
 	"/users": {
-		"GET": ["admin"],
-		"POST": ["admin"]
+		"GET": ["admin"]
+	},
+	"/faz": {
+		"GET": []
+	},
+	"/faz/baz": {
+		"GET": ["user"]
+	},
+	"/faz/baz/goo": {
+		"GET": []
 	}
 }
